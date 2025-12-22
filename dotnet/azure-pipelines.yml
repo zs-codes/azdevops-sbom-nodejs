@@ -1,0 +1,42 @@
+trigger:
+- main
+
+pool:
+  name: macOS-test
+
+variables:
+  buildConfiguration: 'Release'
+  projectPath: 'TestApp'  # Folder containing TestApp.csproj
+
+steps:
+# 1. Restore NuGet packages
+- task: DotNetCoreCLI@2
+  displayName: 'Restore NuGet packages'
+  inputs:
+    command: 'restore'
+    projects: '$(projectPath)/**/*.csproj'
+
+# 2. Build application
+- task: DotNetCoreCLI@2
+  displayName: 'Build project'
+  inputs:
+    command: 'build'
+    projects: '$(projectPath)/**/*.csproj'
+    arguments: '--configuration $(buildConfiguration)'
+
+# 3. Generate SBOM using dotnet-cyclonedx
+- script: |
+    echo "Generating CycloneDX SBOM..."
+    mkdir -p $(Build.ArtifactStagingDirectory)
+    export DOTNET_ROOT=$HOME/.dotnet
+    export PATH="$HOME/.dotnet/tools:$PATH"
+    dotnet-CycloneDX TestApp --output $(Build.ArtifactStagingDirectory) --filename bom.json --output-format Json
+  displayName: 'Generate SBOM'
+  
+# 4. Publish SBOM as pipeline artifact
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish SBOM'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/bom.json'
+    ArtifactName: 'sbom'
+    publishLocation: 'Container'
