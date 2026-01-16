@@ -1,6 +1,1 @@
-*.sln
-bin/
-obj/
-packages/
-*.user
-.vs/
+node_modules/
