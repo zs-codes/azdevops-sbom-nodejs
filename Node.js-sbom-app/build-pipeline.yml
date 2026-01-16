@@ -1,0 +1,79 @@
+trigger:
+  - main
+
+pool:
+  name: 'windows-server-agent'
+
+variables:
+  NODE_VERSION: '18.x'
+  DT_URI: 'http://localhost:8080/'
+  DT_PROJ_NAME: 'Node.Js-sbom-app'
+  DT_PROJ_VERSION: '1.0'
+  # DT_API_KEY and DT_PROJ_ID should be defined as secret variables in Azure DevOps
+
+stages:
+  - stage: Build
+    displayName: 'Build Application'
+    jobs:
+      - job: BuildJob
+        displayName: 'Build Node.js App'
+        steps:
+          # Setup Node.js
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: '$(NODE_VERSION)'
+
+          # Display Node and NPM versions
+          - script: |
+              node --version
+              npm --version
+            displayName: 'Display Node.js and NPM versions'
+
+          # Install dependencies
+          - script: |
+              npm ci
+            displayName: 'Install dependencies'
+
+          # Run tests (if available)
+          - script: |
+              npm test --if-present
+            displayName: 'Run tests'
+            continueOnError: true
+
+          # Generate SBOM
+          - script: |
+              npm run sbom:cyclonedx
+            displayName: 'Generate SBOM (CycloneDX format)'
+
+          # Verify SBOM was created
+          - script: |
+              dir sbom.json
+            displayName: 'Verify SBOM file'
+
+          # Upload SBOM to Dependency Track
+          - task: upload-bom-dtrack-task@1
+            displayName: 'Upload SBOM to Dependency Track'
+            inputs:
+              dtrackProjId: '$(DT_PROJ_ID)'
+              dtrackProjName: '$(DT_PROJ_NAME)'
+              dtrackProjVersion: '$(DT_PROJ_VERSION)'
+              bomFilePath: 'sbom.json'
+              dtrackAPIKey: '$(DT_API_KEY)'
+              dtrackURI: '$(DT_URI)'
+
+          # Publish SBOM as artifact
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish SBOM artifact'
+            inputs:
+              targetPath: '$(System.DefaultWorkingDirectory)/sbom.json'
+              artifact: 'sbom'
+              publishLocation: 'pipeline'
+
+          # Build success message
+          - script: |
+              echo =========================================
+              echo Build completed successfully!
+              echo SBOM generated and saved as artifact
+              echo =========================================
+            displayName: 'Build Summary'

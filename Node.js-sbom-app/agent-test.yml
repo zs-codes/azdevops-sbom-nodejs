@@ -1,0 +1,10 @@
+trigger:
+  - main
+
+pool: windows-server-agent
+
+steps:
+  - script: |
+      echo "Running on: %COMPUTERNAME%"
+      echo "Agent: $(Agent.Name)"
+    displayName: 'Test Agent'
