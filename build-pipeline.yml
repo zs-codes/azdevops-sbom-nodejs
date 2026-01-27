@@ -46,12 +46,8 @@ stages:
               npm run sbom:cyclonedx
             displayName: 'Generate SBOM (CycloneDX format)'
 
-          # Verify SBOM was created
-          - script: |
-              dir sbom.json
-            displayName: 'Verify SBOM file'
-
           # Upload SBOM to Dependency Track
+          # Note: Ensure 'upload-bom-dtrack-task' extension is installed in your Azure DevOps project/organization
           - task: upload-bom-dtrack-task@1
             displayName: 'Upload SBOM to Dependency Track'
             inputs:
